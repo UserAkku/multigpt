@@ -55,10 +55,14 @@ export function Workspace() {
     const context = buildProjectContext(project, content);
     let answer = "";
     try {
-      const history = [
-        ...(project.conversations.find((c) => c.id === conversationId)?.messages ?? []).map((m) => ({ role: m.role, content: m.content })),
-        ...(skipUser ? [{ role: "user", content }] : []),
-      ];
+      // Build history from the stale project snapshot (React closure), then always append
+      // the current user message. The stale snapshot never contains the message the user
+      // just typed (or the empty assistant placeholder), so appending here is always correct
+      // whether this is a first message (skipUser=true from createConversation) or a reply.
+      const prevMessages = (project.conversations.find((c) => c.id === conversationId)?.messages ?? [])
+        .filter((m) => m.content.trim()) // guard against any stale empty-placeholder leaking in
+        .map((m) => ({ role: m.role as string, content: m.content }));
+      const history = [...prevMessages, { role: "user" as const, content }];
       const response = await fetch("/api/ai", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: history, context }) });
       if (!response.ok || !response.body) throw new Error("AI unavailable");
       const reader = response.body.getReader(); const decoder = new TextDecoder();
