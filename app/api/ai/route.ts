@@ -8,11 +8,16 @@ export async function POST(request: NextRequest) {
   const key = process.env.MISTRAL_API_KEY;
   if (!key) return stream(`MultiGPT is running in local demo mode. Add a MISTRAL_API_KEY to receive live Mistral responses.\n\nFor this question — “${latest}” — review the project context, preserve the decision trail, and turn any confirmed outcome into knowledge, a decision, or a task.`, 18);
 
-  const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json", "Accept": "text/event-stream" },
-    body: JSON.stringify({ model: process.env.MISTRAL_MODEL || "mistral-small-latest", stream: true, messages: [{ role: "system", content: `You are the Project AI inside MultiGPT. Answer from the supplied project context; if evidence is missing, say so. Be concise and explain traceability.\n\nPROJECT CONTEXT:\n${context}` }, ...messages.map((m: { role: string; content: string }) => ({ role: m.role, content: m.content }))] })
-  });
+  let response: Response;
+  try {
+    response = await fetch("https://api.mistral.ai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json", "Accept": "text/event-stream" },
+      body: JSON.stringify({ model: process.env.MISTRAL_MODEL || "mistral-small-latest", stream: true, messages: [{ role: "system", content: `You are the Project AI inside MultiGPT. Answer from the supplied project context; if evidence is missing, say so. Be concise and explain traceability.\n\nPROJECT CONTEXT:\n${context}` }, ...messages.map((m: { role: string; content: string }) => ({ role: m.role, content: m.content }))] })
+    });
+  } catch {
+    return stream("Mistral couldn’t respond right now. Please try again in a moment.", 18);
+  }
   if (!response.ok || !response.body) return stream("Mistral couldn’t respond right now. Please try again in a moment.", 18);
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();

@@ -1,0 +1,11 @@
+{
+  "title": "QuickBite payment webhook contract v1",
+  "principles": ["Idempotent processing", "Persist before side effects", "Provider events are audited"],
+  "events": [
+    {"name": "payment.captured", "internalState": "paid", "requiredFields": ["payment_id", "order_id", "amount", "currency"]},
+    {"name": "refund.created", "internalState": "refund_initiated", "requiredFields": ["refund_id", "payment_id", "amount"]},
+    {"name": "refund.processed", "internalState": "refunded", "requiredFields": ["refund_id", "payment_id", "status"]},
+    {"name": "refund.failed", "internalState": "refund_failed", "requiredFields": ["refund_id", "payment_id", "error"]}
+  ],
+  "retryPolicy": {"idempotencyKey": "provider_event_id", "maxAttempts": 5, "backoff": "exponential"}
+}

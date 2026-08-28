@@ -1,0 +1,6 @@
+Area,Owner,Status,Launch gate
+Checkout,Rahul,In progress,UPI and card payment success paths tested
+Refunds,Aman,In progress,Webhook retries and reconciliation verified
+Onboarding,Neha,Ready,First-order flow reviewed on mobile
+Restaurant data,Akhilesh,In review,Top 50 menus checked for quality
+Support,Aman,Todo,Exception handoff playbook agreed
