@@ -109,10 +109,10 @@ export function Workspace() {
     <Sidebar project={project} me={me!} page={page} onNavigate={go} onNew={() => createConversation()} onProjectInfo={() => setShowProjectInfo(true)} onSwitchIdentity={() => { setData((current) => ({ ...current, currentUserId: undefined })); setSidebarOpen(false); }} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
     <main className="main"><MobileHeader project={project} onMenu={() => setSidebarOpen(true)} onSearch={() => setSearchOpen(true)} />
       {page === "overview" && <Overview project={project} people={project.members} onAsk={(q) => createConversation("Project AI — " + q.slice(0, 42), q)} onNavigate={go} onMembers={() => setShowPeople(true)} onOpenChat={(id) => { setSelectedConversationId(id); go("chats"); }} />}
-      {page === "chats" && <Chats project={project} people={project.members} active={active} onSelect={setSelectedConversationId} onNew={() => createConversation()} onSend={sendMessage} onComment={addComment} onBranch={createBranch} onSave={saveArtifact} />}
+      {page === "chats" && <Chats project={project} people={project.members} me={me!} active={active} onSelect={setSelectedConversationId} onNew={() => createConversation()} onSend={sendMessage} onComment={addComment} onBranch={createBranch} onSave={saveArtifact} onFileAttach={(file) => updateProject((p) => activity({ ...p, files: [file, ...p.files] }, { actorId: me!.id, action: "added file", target: file.name, kind: "file" }))} onClear={(id) => updateProject((p) => ({ ...p, conversations: p.conversations.map((c) => c.id === id ? { ...c, messages: [] } : c) }))} />}
       {page === "knowledge" && <KnowledgeView project={project} people={project.members} onOpen={(id) => { setSelectedConversationId(id); go("chats"); }} />}
       {page === "decisions" && <DecisionsView project={project} people={project.members} onChange={(id, status) => updateProject((p) => activity({ ...p, decisions: p.decisions.map((d) => d.id === id ? { ...d, status } : d) }, { actorId: me!.id, action: "updated decision", target: p.decisions.find((d) => d.id === id)?.title || "decision", kind: "decision" }))} onOpen={(id) => { setSelectedConversationId(id); go("chats"); }} />}
-      {page === "tasks" && <TasksView project={project} people={project.members} onChange={(id, status) => updateProject((p) => activity({ ...p, tasks: p.tasks.map((t) => t.id === id ? { ...t, status } : t) }, { actorId: me!.id, action: `moved task to ${labels[status].toLowerCase()}`, target: p.tasks.find((t) => t.id === id)?.title || "task", kind: "task" }))} onCreate={(title, description, assigneeId, priority) => updateProject((p) => { const task: Task = { id: uid(), title, description, status: "todo", priority, authorId: me!.id, assigneeId, createdAt: new Date().toISOString() }; return activity({ ...p, tasks: [task, ...p.tasks] }, { actorId: me!.id, action: "created task", target: title, kind: "task" }); })} />}
+      {page === "tasks" && <TasksView project={project} people={project.members} onChange={(id, status) => updateProject((p) => activity({ ...p, tasks: p.tasks.map((t) => t.id === id ? { ...t, status } : t) }, { actorId: me!.id, action: `moved task to ${labels[status].toLowerCase()}`, target: p.tasks.find((t) => t.id === id)?.title || "task", kind: "task" }))} onDelete={(id) => updateProject((p) => activity({ ...p, tasks: p.tasks.filter((t) => t.id !== id) }, { actorId: me!.id, action: `deleted task`, target: p.tasks.find((t) => t.id === id)?.title || "task", kind: "task" }))} onCreate={(title, description, assigneeId, priority) => updateProject((p) => { const task: Task = { id: uid(), title, description, status: "todo", priority, authorId: me!.id, assigneeId, createdAt: new Date().toISOString() }; return activity({ ...p, tasks: [task, ...p.tasks] }, { actorId: me!.id, action: "created task", target: title, kind: "task" }); })} />}
       {page === "files" && <FilesView project={project} people={project.members} me={me!} onAdd={(file) => updateProject((p) => activity({ ...p, files: [file, ...p.files] }, { actorId: me!.id, action: "added file", target: file.name, kind: "file" }))} />}
       {page === "activity" && <ActivityView project={project} people={project.members} />}
       {page === "members" && <MembersView project={project} people={project.members} onAdd={(name) => { const person = { id: uid(), name, initials: name.split(" ").map((x) => x[0]).join("").slice(0, 2).toUpperCase(), tone: ["coral", "violet", "ink", "rose"][project.members.length % 4] }; updateProject((p) => activity({ ...p, members: [...p.members, person] }, { actorId: me!.id, action: "added member", target: name, kind: "people" })); }} />}
@@ -121,12 +121,12 @@ export function Workspace() {
     {showProjectInfo && <ProjectInfo project={project} onClose={() => setShowProjectInfo(false)} />}
     {searchOpen && <SearchPalette project={project} onClose={() => setSearchOpen(false)} onGo={(target, id) => { setSearchOpen(false); if (target === "chats") setSelectedConversationId(id); go(target); }} />}
     {newProject && <CreateProject onCreate={createProject} onClose={() => setNewProject(false)} />}
-    <button className="project-switch" onClick={() => setNewProject(true)} title="Create a new project"><Plus size={16} /></button>
+
     {toast && <div className="toast"><Check size={15} /> {toast}</div>}
   </div>;
 }
 
-function sourceFor(project: Project, query: string) { const q = query.toLowerCase(); const sources: Message["sources"] = []; project.decisions.filter((d) => `${d.title} ${d.description}`.toLowerCase().split(" ").some((t) => q.includes(t) && t.length > 4)).slice(0, 2).forEach((d) => sources!.push({ kind: "decision", id: d.id, label: d.title })); project.knowledge.slice(0, 1).forEach((k) => sources!.push({ kind: "knowledge", id: k.id, label: k.title })); return sources; }
+function sourceFor(project: Project, query: string) { const q = query.toLowerCase(); const sources: Message["sources"] = []; project.decisions.filter((d) => `${d.title} ${d.description}`.toLowerCase().split(" ").some((t) => q.includes(t) && t.length > 4)).slice(0, 2).forEach((d) => sources!.push({ kind: "decision", id: d.id, label: d.title })); project.knowledge.slice(0, 1).forEach((k) => sources!.push({ kind: "knowledge", id: k.id, label: k.title })); project.files.filter((f) => f.content && `${f.name} ${f.content}`.toLowerCase().split(" ").some((t) => q.includes(t) && t.length > 4)).slice(0, 1).forEach((f) => sources!.push({ kind: "file", id: f.id, label: f.name })); return sources; }
 
 function Avatar({ person, small = false }: { person?: Person; small?: boolean }) { return <span className={`avatar ${person?.tone || "ink"} ${small ? "small" : ""}`}>{person?.initials || "AI"}</span>; }
 function Status({ value }: { value: string }) { return <span className={`status ${value}`}>{labels[value] || value}</span>; }
@@ -135,7 +135,7 @@ function Empty({ icon: Icon, title, copy, action }: { icon: typeof Inbox; title:
 function Sidebar({ project, me, page, onNavigate, onNew, onProjectInfo, onSwitchIdentity, open, onClose }: { project: Project; me: Person; page: Page; onNavigate: (p: Page) => void; onNew: () => void; onProjectInfo: () => void; onSwitchIdentity: () => void; open: boolean; onClose: () => void }) {
   return <><aside className={`sidebar ${open ? "open" : ""}`}><div className="brand"><span className="brand-mark">M</span><span>multiGPT</span><button className="icon-button sidebar-x" onClick={onClose}><X size={18} /></button></div><button className="project-select" onClick={onProjectInfo}><span><small>PROJECT</small>{project.name}</span><ChevronDown size={15} /></button><button className="new-chat" onClick={onNew}><Plus size={16} />New conversation <kbd>N</kbd></button><nav>{nav.map(({ id, label, icon: Icon }) => <button key={id} className={page === id ? "active" : ""} onClick={() => onNavigate(id)}><Icon size={17} />{label}{id === "tasks" && project.tasks.filter((t) => t.status !== "done").length > 0 && <span className="nav-count">{project.tasks.filter((t) => t.status !== "done").length}</span>}</button>)}</nav><div className="sidebar-bottom"><button className="identity" onClick={onSwitchIdentity} title="Switch demo identity"><Avatar person={me} small /><span><strong>{me.name}</strong><small>Switch identity</small></span><LogOut size={16} /></button></div></aside>{open && <button className="scrim" aria-label="Close menu" onClick={onClose} />}</>;
 }
-function MobileHeader({ project, onMenu, onSearch }: { project: Project; onMenu: () => void; onSearch: () => void }) { return <header className="mobile-header"><button className="icon-button" onClick={onMenu}><Menu size={20} /></button><div><strong>{project.name}</strong><small>Shared AI workspace</small></div><button className="icon-button" onClick={onSearch}><Search size={19} /></button></header>; }
+function MobileHeader({ project, onMenu, onSearch }: { project: Project; onMenu: () => void; onSearch: () => void }) { return <header className="mobile-header"><button className="icon-button" onClick={onMenu}><Menu size={20} /></button><div className="mobile-logo"><span className="logo-mark">M</span><strong>multiGPT</strong></div><button className="icon-button" onClick={onSearch}><Search size={19} /></button></header>; }
 function Overview({ project, people, onAsk, onNavigate, onMembers, onOpenChat }: { project: Project; people: Person[]; onAsk: (q: string) => void; onNavigate: (page: Page) => void; onMembers: () => void; onOpenChat: (id: string) => void }) {
   const [question, setQuestion] = useState("");
   const ask = () => { if (question.trim()) { onAsk(question.trim()); setQuestion(""); } };
@@ -143,26 +143,194 @@ function Overview({ project, people, onAsk, onNavigate, onMembers, onOpenChat }:
 }
 function SectionTitle({ title, action, onAction }: { title: string; action: string; onAction: () => void }) { return <div className="section-title"><h2>{title}</h2><button onClick={onAction}>{action}<ArrowUpRight size={13} /></button></div>; }
 
-function Chats({ project, people, active, onSelect, onNew, onSend, onComment, onBranch, onSave }: { project: Project; people: Person[]; active?: Conversation; onSelect: (id: string) => void; onNew: () => void; onSend: (id: string, text: string) => void; onComment: (c: string, m: string, text: string) => void; onBranch: (c: Conversation, m: string) => void; onSave: (kind: "knowledge" | "decision" | "task", c: Conversation, m: Message, values: { title: string; body: string; type?: string; assignee?: string; priority?: string }) => void }) {
+function Chats({ project, people, me, active, onSelect, onNew, onSend, onComment, onBranch, onSave, onFileAttach, onClear }: { project: Project; people: Person[]; me: Person; active?: Conversation; onSelect: (id: string) => void; onNew: () => void; onSend: (id: string, text: string) => void; onComment: (c: string, m: string, text: string) => void; onBranch: (c: Conversation, m: string) => void; onSave: (kind: "knowledge" | "decision" | "task", c: Conversation, m: Message, values: { title: string; body: string; type?: string; assignee?: string; priority?: string }) => void; onFileAttach: (f: FileItem) => void; onClear: (id: string) => void }) {
   const [filter, setFilter] = useState(""); const [showContext, setShowContext] = useState(false);
   const list = project.conversations.filter((c) => `${c.title} ${c.preview}`.toLowerCase().includes(filter.toLowerCase()));
+  
+  useEffect(() => {
+    setShowContext(false);
+  }, [active?.id]);
+
   if (!active) return <div className="page"><Empty icon={MessageSquare} title="No conversations yet" copy="Start with a question your team is already discussing." action={<button className="primary-button" onClick={onNew}><Plus size={16} /> Start a conversation</button>} /></div>;
-  return <div className="chat-layout"><aside className="chat-list"><div className="chat-list-top"><div><p className="eyebrow">SHARED CONVERSATIONS</p><h1>Chats</h1></div><button className="icon-button accent" onClick={onNew}><Plus size={17} /></button></div><div className="input-search"><Search size={15} /><input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search chats" /></div><div className="conversation-list">{list.map((c) => <button className={`chat-item ${active.id === c.id ? "selected" : ""}`} key={c.id} onClick={() => onSelect(c.id)}><div><strong>{c.title}</strong><p>{c.preview}</p><small>{people.find((p) => p.id === c.createdById)?.name} · {formatTime(c.updatedAt)}</small></div>{c.parentId && <Branch size={14} />}</button>)}</div></aside><section className="conversation"><ConversationHeader conversation={active} people={people} onContext={() => setShowContext(!showContext)} /><MessageList conversation={active} people={people} onComment={onComment} onBranch={onBranch} onSave={onSave} /><Composer onSend={(text) => onSend(active.id, text)} /></section>{showContext && <ContextPanel project={project} conversation={active} people={people} onClose={() => setShowContext(false)} />}</div>;
+  return <div className={`chat-layout ${showContext ? "context-open" : ""}`}><aside className="chat-list"><div className="chat-list-top"><div><p className="eyebrow">SHARED CONVERSATIONS</p><h1>Chats</h1></div><button className="icon-button accent" onClick={onNew}><Plus size={17} /></button></div><div className="input-search"><Search size={15} /><input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search chats" /></div><div className="conversation-list">{list.map((c) => <button className={`chat-item ${active.id === c.id ? "selected" : ""}`} key={c.id} onClick={() => { onSelect(c.id); setShowContext(false); }}><div><strong>{c.title}</strong><p>{c.preview}</p><small>{people.find((p) => p.id === c.createdById)?.name} · {formatTime(c.updatedAt)}</small></div>{c.parentId && <Branch size={14} />}</button>)}</div></aside><section className="conversation"><ConversationHeader conversation={active} people={people} onContext={() => setShowContext(!showContext)} onClear={() => onClear(active.id)} /><MessageList conversation={active} people={people} onComment={onComment} onBranch={onBranch} onSave={onSave} /><Composer me={me} onSend={(text) => onSend(active.id, text)} onAttach={onFileAttach} /></section>{showContext && <ContextPanel project={project} conversation={active} people={people} onClose={() => setShowContext(false)} />}</div>;
 }
-function ConversationHeader({ conversation, people, onContext }: { conversation: Conversation; people: Person[]; onContext: () => void }) { const parent = conversation.parentId; return <header className="conversation-header"><div><div className="crumb"><MessageSquare size={13} /> Chats <ChevronRight size={13} /> {parent ? "Branch" : "Conversation"}</div><h1>{conversation.title}</h1><div className="conversation-meta">{conversation.branchName && <span><Branch size={13} />{conversation.branchName}</span>}<span className="model-dot" /> Mistral · {conversation.model}</div></div><div className="header-actions"><div className="facepile">{conversation.participants.slice(0, 3).map((id) => <Avatar key={id} person={people.find((p) => p.id === id)} small />)}</div><button className="icon-button" onClick={onContext} title="Project context"><FileText size={17} /></button><button className="icon-button"><MoreHorizontal size={18} /></button></div></header>; }
+function ConversationHeader({ conversation, people, onContext, onClear }: { conversation: Conversation; people: Person[]; onContext: () => void; onClear: () => void }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  
+  useEffect(() => {
+    const close = () => { setMenuOpen(false); setConfirmClear(false); };
+    if (menuOpen) window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [menuOpen]);
+
+  const downloadChat = () => {
+    const text = conversation.messages.map(m => `${m.role === "assistant" ? "Project AI" : people.find(p => p.id === m.authorId)?.name || "User"} (${new Date(m.createdAt).toLocaleString()}):\n${m.content || "(thinking...)"}\n`).join("\n");
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${conversation.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setMenuOpen(false);
+  };
+
+  const parent = conversation.parentId;
+  return <header className="conversation-header">
+    <div>
+      <div className="crumb"><MessageSquare size={13} /> Chats <ChevronRight size={13} /> {parent ? "Branch" : "Conversation"}</div>
+      <h1>{conversation.title}</h1>
+      <div className="conversation-meta">{conversation.branchName && <span><Branch size={13} />{conversation.branchName}</span>}<span className="model-dot" /> Mistral · {conversation.model}</div>
+    </div>
+    <div className="header-actions">
+      <div className="facepile">
+        {conversation.participants.slice(0, 3).map((id) => <Avatar key={id} person={people.find((p) => p.id === id)} small />)}
+      </div>
+      <button className="icon-button" onClick={downloadChat} title="Download chat"><FileText size={17} /></button>
+      <div style={{ position: "relative" }}>
+        <button className="icon-button" onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); setConfirmClear(false); }} title="More options">
+          <MoreHorizontal size={18} />
+        </button>
+        {menuOpen && (
+          <div className="task-menu-pop" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => { onContext(); setMenuOpen(false); }} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <FileText size={14} /> View AI context
+            </button>
+            <button onClick={copyLink} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <Paperclip size={14} /> Copy link
+            </button>
+            <div className="pop-divider" />
+            <button className="delete-btn" onClick={() => { if (confirmClear) { onClear(); setMenuOpen(false); } else setConfirmClear(true); }} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <X size={14} /> {confirmClear ? "Confirm clear?" : "Clear conversation"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  </header>;
+}
 function MessageList({ conversation, people, onComment, onBranch, onSave }: { conversation: Conversation; people: Person[]; onComment: (c: string, m: string, text: string) => void; onBranch: (c: Conversation, m: string) => void; onSave: (k: "knowledge" | "decision" | "task", c: Conversation, m: Message, values: { title: string; body: string; type?: string; assignee?: string; priority?: string }) => void }) { const end = useRef<HTMLDivElement>(null); useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [conversation.messages.length, conversation.messages.at(-1)?.content]); return <div className="messages">{conversation.messages.map((message) => <MessageCard key={message.id} conversation={conversation} message={message} people={people} onComment={onComment} onBranch={onBranch} onSave={onSave} />)}{conversation.messages.length === 0 && <Empty icon={Sparkles} title="A blank thread, with the whole project behind it" copy="Ask a question and MultiGPT will bring the relevant project memory into the conversation." />}<div ref={end} /></div>; }
 function MessageCard({ conversation, message, people, onComment, onBranch, onSave }: { conversation: Conversation; message: Message; people: Person[]; onComment: (c: string, m: string, text: string) => void; onBranch: (c: Conversation, m: string) => void; onSave: (k: "knowledge" | "decision" | "task", c: Conversation, m: Message, values: { title: string; body: string; type?: string; assignee?: string; priority?: string }) => void }) {
   const [comments, setComments] = useState(message.comments.length > 0); const [comment, setComment] = useState(""); const [save, setSave] = useState(false); const assistant = message.role === "assistant"; const author = people.find((p) => p.id === message.authorId);
   return <article className={`message ${assistant ? "assistant" : "user"}`}><div className="message-author">{assistant ? <span className="ai-avatar"><Bot size={15} /></span> : <Avatar person={author} small />}<span>{assistant ? "Project AI" : author?.name || "Teammate"}</span><time>{formatTime(message.createdAt)}</time></div><div className="message-body">{message.content ? message.content.split("\n").map((line, i) => <p key={i}>{line || <br />}</p>) : <span className="thinking"><i /><i /><i /> Thinking with project context</span>}</div>{assistant && message.content && <div className="message-actions"><button onClick={() => setComments(!comments)}><MessageSquare size={14} />Comment{message.comments.length ? ` (${message.comments.length})` : ""}</button><button onClick={() => setSave(!save)}><Archive size={14} />Save</button><button onClick={() => onBranch(conversation, message.id)}><Branch size={14} />Branch</button></div>}{message.sources && message.sources.length > 0 && <div className="sources"><span>Sources</span>{message.sources.map((s) => <button key={`${s.kind}-${s.id}`}><FileText size={12} />{s.label}</button>)}</div>}{save && <SaveSheet message={message} people={people} onSave={(kind, values) => { onSave(kind, conversation, message, values); setSave(false); }} onClose={() => setSave(false)} />}{(comments || !assistant) && <div className="comment-thread">{message.comments.map((c) => { const person = people.find((p) => p.id === c.authorId); return <div className="comment" key={c.id}><Avatar person={person} small /><p><strong>{person?.name}</strong>{c.content}<small>{formatTime(c.createdAt)}</small></p></div>; })}{assistant && <form className="comment-input" onSubmit={(e) => { e.preventDefault(); if (comment.trim()) { onComment(conversation.id, message.id, comment); setComment(""); setComments(true); } }}><input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Add to this discussion…" /><button disabled={!comment.trim()}><Send size={14} /></button></form>}</div>}</article>;
 }
 function SaveSheet({ message, people, onSave, onClose }: { message: Message; people: Person[]; onSave: (kind: "knowledge" | "decision" | "task", values: { title: string; body: string; type?: string; assignee?: string; priority?: string }) => void; onClose: () => void }) { const [kind, setKind] = useState<"knowledge" | "decision" | "task">("knowledge"); const [title, setTitle] = useState(message.content.split(".")[0].replace(/\*\*/g, "").slice(0, 88)); const [body, setBody] = useState(message.content.slice(0, 380)); const [type, setType] = useState("finding"); const [assignee, setAssignee] = useState(people[0]?.id || ""); const [priority, setPriority] = useState("medium"); return <div className="save-sheet"><div className="save-head"><div><p className="eyebrow">CAPTURE OUTCOME</p><h3>Save to project memory</h3></div><button className="icon-button" onClick={onClose}><X size={16} /></button></div><div className="save-types">{(["knowledge", "decision", "task"] as const).map((x) => <button key={x} className={kind === x ? "chosen" : ""} onClick={() => setKind(x)}>{x === "knowledge" ? <Archive size={14} /> : x === "decision" ? <CircleDot size={14} /> : <Target size={14} />}{x}</button>)}</div><label>Title<input value={title} onChange={(e) => setTitle(e.target.value)} /></label><label>{kind === "decision" ? "Why this matters" : "Details"}<textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} /></label>{kind === "knowledge" && <label>Type<select value={type} onChange={(e) => setType(e.target.value)}><option>finding</option><option>research</option><option>requirement</option><option>note</option><option>fact</option></select></label>}{kind === "task" && <div className="field-row"><label>Assignee<select value={assignee} onChange={(e) => setAssignee(e.target.value)}>{people.map((p) => <option value={p.id} key={p.id}>{p.name}</option>)}</select></label><label>Priority<select value={priority} onChange={(e) => setPriority(e.target.value)}><option>medium</option><option>high</option><option>low</option></select></label></div>}<button className="primary-button full" onClick={() => onSave(kind, { title, body, type, assignee, priority })} disabled={!title.trim()}>Save {kind}</button></div>; }
-function Composer({ onSend }: { onSend: (text: string) => void }) { const [text, setText] = useState(""); return <form className="composer" onSubmit={(e) => { e.preventDefault(); if (text.trim()) { onSend(text); setText(""); } }}><textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (text.trim()) { onSend(text); setText(""); } } }} placeholder="Continue the conversation…" rows={1} /><div><button type="button" className="icon-button"><Paperclip size={16} /></button><span>Shift + Enter for a new line</span><button className="send-button" disabled={!text.trim()}><Send size={16} /></button></div></form>; }
+function Composer({ me, onSend, onAttach }: { me: Person; onSend: (text: string) => void; onAttach: (f: FileItem) => void }) {
+  const [text, setText] = useState("");
+  const [attached, setAttached] = useState<FileItem | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  return <form className="composer" onSubmit={(e) => { e.preventDefault(); if (text.trim()) { onSend(text); setText(""); setAttached(null); } }}>
+    {attached && <div className="composer-attachments">
+      <span className="attachment-chip"><FileText size={12} /> {attached.name} <button type="button" onClick={() => setAttached(null)}><X size={12}/></button></span>
+    </div>}
+    <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (text.trim()) { onSend(text); setText(""); setAttached(null); } } }} placeholder="Continue the conversation…" rows={1} />
+    <div>
+      <input type="file" ref={fileRef} hidden onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const { extractFileContent } = await import("@/lib/file-reader"); const content = await extractFileContent(f); const item: FileItem = { id: uid(), name: f.name, size: f.size, type: f.type || "Document", uploaderId: me.id, createdAt: new Date().toISOString(), url: URL.createObjectURL(f), content }; setAttached(item); onAttach(item); e.target.value = ""; } }} />
+      <button type="button" className="icon-button" onClick={() => fileRef.current?.click()}><Paperclip size={16} /></button>
+      <span>Shift + Enter for a new line</span>
+      <button className="send-button" disabled={!text.trim()}><Send size={16} /></button>
+    </div>
+  </form>;
+}
 function ContextPanel({ project, conversation, people, onClose }: { project: Project; conversation: Conversation; people: Person[]; onClose: () => void }) { return <aside className="context-panel"><div className="panel-head"><div><p className="eyebrow">LIVE CONTEXT</p><h2>What AI can use</h2></div><button className="icon-button" onClick={onClose}><X size={17} /></button></div><p className="context-copy">This answer is grounded in confirmed decisions, saved knowledge, and the current thread.</p><div className="context-group"><small>CONFIRMED DECISIONS</small>{project.decisions.filter((d) => d.status === "confirmed").map((d) => <div className="context-item" key={d.id}><CircleDot size={14} /><span>{d.title}</span></div>)}</div><div className="context-group"><small>RELATED KNOWLEDGE</small>{project.knowledge.slice(0, 3).map((k) => <div className="context-item" key={k.id}><Archive size={14} /><span>{k.title}</span></div>)}</div>{conversation.parentId && <div className="lineage"><Branch size={15} /><div><small>BRANCHED FROM</small><strong>{project.conversations.find((c) => c.id === conversation.parentId)?.title}</strong></div></div>}</aside>; }
 
 function KnowledgeView({ project, people, onOpen }: { project: Project; people: Person[]; onOpen: (id: string) => void }) { const [query, setQuery] = useState(""); const [filter, setFilter] = useState("all"); const [selected, setSelected] = useState<Knowledge | undefined>(project.knowledge[0]); const items = project.knowledge.filter((k) => (filter === "all" || k.type === filter) && `${k.title} ${k.content}`.toLowerCase().includes(query.toLowerCase())); return <div className="page list-page"><PageHeader eyebrow="SHARED MEMORY" title="Knowledge" copy="Useful context your team has chosen to remember." /><div className="filterbar"><div className="input-search"><Search size={15} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search knowledge…" /></div><div className="chips">{["all", "finding", "research", "requirement", "note", "fact"].map((x) => <button key={x} className={filter === x ? "selected" : ""} onClick={() => setFilter(x)}>{x === "all" ? "All" : labels[x]}</button>)}</div></div><div className="split-list"> <div className="artifact-list">{items.map((k) => <button className={`artifact-row ${selected?.id === k.id ? "selected" : ""}`} key={k.id} onClick={() => setSelected(k)}><span className={`artifact-icon ${k.type}`}><Archive size={16} /></span><span><Status value={k.type} /><strong>{k.title}</strong><p>{k.content}</p><small>{people.find((p) => p.id === k.authorId)?.name} · {formatTime(k.createdAt)}</small></span></button>)}{!items.length && <Empty icon={Archive} title="Project memory starts here" copy="Save useful findings from your AI conversations." />}</div>{selected && <aside className="artifact-detail"><span className={`artifact-icon ${selected.type}`}><Archive size={17} /></span><Status value={selected.type} /><h2>{selected.title}</h2><p>{selected.content}</p><footer><div><small>CREATED BY</small><span><Avatar person={people.find((p) => p.id === selected.authorId)} small />{people.find((p) => p.id === selected.authorId)?.name}</span></div>{selected.sourceConversationId && <button className="source-link" onClick={() => onOpen(selected.sourceConversationId!)}><MessageSquare size={14} />View source conversation <ArrowUpRight size={13} /></button>}</footer></aside>}</div></div>; }
 function DecisionsView({ project, people, onChange, onOpen }: { project: Project; people: Person[]; onChange: (id: string, status: Decision["status"]) => void; onOpen: (id: string) => void }) { const [selected, setSelected] = useState<Decision | undefined>(project.decisions[0]); return <div className="page list-page"><PageHeader eyebrow="WHAT WE CHOSE" title="Decisions" copy="The canonical choices that move the project forward." /><div className="split-list decisions-list"><div className="artifact-list">{project.decisions.map((d, i) => <button className={`artifact-row ${selected?.id === d.id ? "selected" : ""}`} key={d.id} onClick={() => setSelected(d)}><span className="decision-number">{String(i + 1).padStart(2, "0")}</span><span><Status value={d.status} /><strong>{d.title}</strong><p>{d.reason}</p><small>{formatTime(d.createdAt)} · {people.find((p) => p.id === d.authorId)?.name}</small></span></button>)}{!project.decisions.length && <Empty icon={CircleDot} title="No decisions yet" copy="When your team chooses an approach, it will appear here." />}</div>{selected && <aside className="artifact-detail decision-detail"><div className="detail-heading"><span className="decision-number">{String(project.decisions.indexOf(selected) + 1).padStart(2, "0")}</span><Status value={selected.status} /></div><h2>{selected.title}</h2><div className="why-block"><small>WHY</small><p>{selected.reason}</p></div>{selected.alternatives && <div className="why-block"><small>ALTERNATIVES CONSIDERED</small><p>{selected.alternatives}</p></div>}<label className="detail-select">Status<select value={selected.status} onChange={(e) => { onChange(selected.id, e.target.value as Decision["status"]); setSelected({ ...selected, status: e.target.value as Decision["status"] }); }}>{(["proposed", "under_review", "confirmed", "rejected", "archived"] as const).map((x) => <option value={x} key={x}>{labels[x]}</option>)}</select></label>{selected.sourceConversationId && <button className="source-link" onClick={() => onOpen(selected.sourceConversationId!)}><MessageSquare size={14} />Open source discussion <ArrowUpRight size={13} /></button>}</aside>}</div></div>; }
-function TasksView({ project, people, onChange, onCreate }: { project: Project; people: Person[]; onChange: (id: string, status: Task["status"]) => void; onCreate: (title: string, description: string, assigneeId: string, priority: Task["priority"]) => void }) { const groups: Task["status"][] = ["todo", "in_progress", "done"]; const [creating, setCreating] = useState(false); const [title, setTitle] = useState(""); const [description, setDescription] = useState(""); const [assignee, setAssignee] = useState(people[0]?.id || ""); const [priority, setPriority] = useState<Task["priority"]>("medium"); const submit = (event: React.FormEvent) => { event.preventDefault(); if (!title.trim()) return; onCreate(title.trim(), description.trim(), assignee, priority); setTitle(""); setDescription(""); setPriority("medium"); setCreating(false); }; return <div className="page list-page"><PageHeader eyebrow="TURN INSIGHT INTO MOMENTUM" title="Tasks" copy="Lightweight actions, each connected back to the AI work that created it." action={<button className="primary-button" onClick={() => setCreating(true)}><Plus size={16} /> New task</button>} />{creating && <form className="task-create" onSubmit={submit}><div className="task-create-head"><div><p className="eyebrow">NEW ACTION</p><strong>Turn a decision into a next step</strong></div><button className="icon-button" type="button" onClick={() => setCreating(false)}><X size={16} /></button></div><input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What needs to happen?" /><textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add useful context (optional)" rows={2} /><div className="task-create-controls"><label>Assignee<select value={assignee} onChange={(e) => setAssignee(e.target.value)}>{people.map((person) => <option value={person.id} key={person.id}>{person.name}</option>)}</select></label><label>Priority<select value={priority} onChange={(e) => setPriority(e.target.value as Task["priority"])}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label><button className="primary-button" disabled={!title.trim()}>Create task</button></div></form>}<div className="task-board">{groups.map((status) => <section className="task-column" key={status}><header><span className={`column-dot ${status}`} />{labels[status]}<small>{project.tasks.filter((t) => t.status === status).length}</small></header>{project.tasks.filter((t) => t.status === status).map((t) => <article className="task-card" key={t.id}><div><Status value={t.priority} /><button className="task-menu" aria-label={`Task options for ${t.title}`}><MoreHorizontal size={17} /></button></div><h3>{t.title}</h3><p>{t.description}</p><footer><select aria-label={`Status for ${t.title}`} value={t.status} onChange={(e) => onChange(t.id, e.target.value as Task["status"])}>{groups.map((x) => <option key={x} value={x}>{labels[x]}</option>)}</select><span><Avatar person={people.find((p) => p.id === t.assigneeId)} small />{people.find((p) => p.id === t.assigneeId)?.name || "Unassigned"}</span></footer></article>)}{!project.tasks.some((t) => t.status === status) && <div className="empty-column">No {labels[status].toLowerCase()} tasks</div>}</section>)}</div></div>; }
-function FilesView({ project, people, me, onAdd }: { project: Project; people: Person[]; me: Person; onAdd: (f: FileItem) => void }) { const fileRef = useRef<HTMLInputElement>(null); return <div className="page list-page"><PageHeader eyebrow="PROJECT MATERIAL" title="Files" copy="Supporting documents live alongside the thinking that uses them." action={<button className="primary-button" onClick={() => fileRef.current?.click()}><Plus size={16} /> Add file</button>} /><input type="file" ref={fileRef} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onAdd({ id: uid(), name: f.name, size: f.size, type: f.type || "Document", uploaderId: me.id, createdAt: new Date().toISOString(), url: URL.createObjectURL(f) }); }} />{project.files.length ? <div className="file-table"><div className="table-head"><span>Name</span><span>Added by</span><span>Size</span><span /></div>{project.files.map((f) => <div className="file-row" key={f.id}><span><span className="file-icon"><FileText size={17} /></span><strong>{f.name}</strong><small>{f.type}</small></span><span><Avatar person={people.find((p) => p.id === f.uploaderId)} small />{people.find((p) => p.id === f.uploaderId)?.name}</span><span>{Math.max(1, Math.round(f.size / 1000))} KB · {formatTime(f.createdAt)}</span>{f.url ? <a className="icon-button" href={f.url} download={f.name} aria-label={`Download ${f.name}`}><Download size={17} /></a> : <button className="icon-button" aria-label={`No download available for ${f.name}`} disabled><MoreHorizontal size={17} /></button>}</div>)}</div> : <Empty icon={FolderOpen} title="No files yet" copy="Add research, briefs, or diagrams when a conversation needs supporting material." action={<button className="primary-button" onClick={() => fileRef.current?.click()}><Plus size={16} /> Add a file</button>} />}</div>; }
+function TasksView({ project, people, onChange, onDelete, onCreate }: { project: Project; people: Person[]; onChange: (id: string, status: Task["status"]) => void; onDelete: (id: string) => void; onCreate: (title: string, description: string, assigneeId: string, priority: Task["priority"]) => void }) {
+  const groups: Task["status"][] = ["todo", "in_progress", "done"];
+  const [creating, setCreating] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [assignee, setAssignee] = useState(people[0]?.id || "");
+  const [priority, setPriority] = useState<Task["priority"]>("medium");
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const closeMenu = () => { setMenuOpenId(null); setDeleteConfirmId(null); };
+    if (menuOpenId) window.addEventListener("click", closeMenu);
+    return () => window.removeEventListener("click", closeMenu);
+  }, [menuOpenId]);
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!title.trim()) return;
+    onCreate(title.trim(), description.trim(), assignee, priority);
+    setTitle(""); setDescription(""); setPriority("medium"); setCreating(false);
+  };
+
+  return <div className="page list-page">
+    <PageHeader eyebrow="TURN INSIGHT INTO MOMENTUM" title="Tasks" copy="Lightweight actions, each connected back to the AI work that created it." action={<button className="primary-button" onClick={() => setCreating(true)}><Plus size={16} /> New task</button>} />
+    {creating && <form className="task-create" onSubmit={submit}>
+      <div className="task-create-head">
+        <div><p className="eyebrow">NEW ACTION</p><strong>Turn a decision into a next step</strong></div>
+        <button className="icon-button" type="button" onClick={() => setCreating(false)}><X size={16} /></button>
+      </div>
+      <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What needs to happen?" />
+      <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add useful context (optional)" rows={2} />
+      <div className="task-create-controls">
+        <label>Assignee
+          <select value={assignee} onChange={(e) => setAssignee(e.target.value)}>
+            {people.map((person) => <option value={person.id} key={person.id}>{person.name}</option>)}
+          </select>
+        </label>
+        <label>Priority
+          <select value={priority} onChange={(e) => setPriority(e.target.value as Task["priority"])}>
+            <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
+          </select>
+        </label>
+        <button className="primary-button" disabled={!title.trim()}>Create task</button>
+      </div>
+    </form>}
+    <div className="task-board">
+      {groups.map((status) => <section className="task-column" key={status}>
+        <header><span className={`column-dot ${status}`} />{labels[status]}<small>{project.tasks.filter((t) => t.status === status).length}</small></header>
+        {project.tasks.filter((t) => t.status === status).map((t) => {
+          const isOpen = menuOpenId === t.id;
+          const isConfirm = deleteConfirmId === t.id;
+          const advance = t.status === "todo" ? { label: "→ Start", next: "in_progress" as const } : t.status === "in_progress" ? { label: "→ Done", next: "done" as const } : { label: "↩ Reopen", next: "todo" as const };
+          return (
+            <article className="task-card" key={t.id}>
+              <div>
+                <Status value={t.priority} />
+                <div className="task-menu-wrap">
+                  <button className="task-menu" aria-label="Task options" onClick={(e) => { e.stopPropagation(); setMenuOpenId(isOpen ? null : t.id); setDeleteConfirmId(null); }}>
+                    <MoreHorizontal size={17} />
+                  </button>
+                  {isOpen && (
+                    <div className="task-menu-pop" onClick={(e) => e.stopPropagation()}>
+                      {groups.filter(g => g !== t.status).map(g => (
+                        <button key={g} onClick={() => { onChange(t.id, g); setMenuOpenId(null); }}>Move to {labels[g]}</button>
+                      ))}
+                      <div className="pop-divider" />
+                      <button className="delete-btn" onClick={() => { if (isConfirm) { onDelete(t.id); setMenuOpenId(null); } else { setDeleteConfirmId(t.id); } }}>
+                        {isConfirm ? "Confirm delete?" : "Delete task"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <h3>{t.title}</h3>
+              {t.description && <p>{t.description}</p>}
+              <footer>
+                <button className="task-advance" onClick={() => onChange(t.id, advance.next)}>{advance.label}</button>
+                <span><Avatar person={people.find((p) => p.id === t.assigneeId)} small />{people.find((p) => p.id === t.assigneeId)?.name || "Unassigned"}</span>
+              </footer>
+            </article>
+          );
+        })}
+        {!project.tasks.some((t) => t.status === status) && <div className="empty-column">No {labels[status].toLowerCase()} tasks</div>}
+      </section>)}
+    </div>
+  </div>;
+}
+function FilesView({ project, people, me, onAdd }: { project: Project; people: Person[]; me: Person; onAdd: (f: FileItem) => void }) { const fileRef = useRef<HTMLInputElement>(null); return <div className="page list-page"><PageHeader eyebrow="PROJECT MATERIAL" title="Files" copy="Supporting documents live alongside the thinking that uses them." action={<button className="primary-button" onClick={() => fileRef.current?.click()}><Plus size={16} /> Add file</button>} /><input type="file" ref={fileRef} hidden onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const { extractFileContent } = await import("@/lib/file-reader"); const content = await extractFileContent(f); onAdd({ id: uid(), name: f.name, size: f.size, type: f.type || "Document", uploaderId: me.id, createdAt: new Date().toISOString(), url: URL.createObjectURL(f), content }); } }} />{project.files.length ? <div className="file-table"><div className="table-head"><span>Name</span><span>Added by</span><span>Size</span><span /></div>{project.files.map((f) => <div className="file-row" key={f.id}><span><span className="file-icon"><FileText size={17} /></span><strong>{f.name} {f.content && <small className="context-badge">In context</small>}</strong><small>{f.type}</small></span><span><Avatar person={people.find((p) => p.id === f.uploaderId)} small />{people.find((p) => p.id === f.uploaderId)?.name}</span><span>{Math.max(1, Math.round(f.size / 1000))} KB · {formatTime(f.createdAt)}</span>{f.url ? <a className="icon-button" href={f.url} download={f.name} aria-label={`Download ${f.name}`}><Download size={17} /></a> : <button className="icon-button" aria-label={`No download available for ${f.name}`} disabled><MoreHorizontal size={17} /></button>}</div>)}</div> : <Empty icon={FolderOpen} title="No files yet" copy="Add research, briefs, or diagrams when a conversation needs supporting material." action={<button className="primary-button" onClick={() => fileRef.current?.click()}><Plus size={16} /> Add a file</button>} />}</div>; }
 function ActivityView({ project, people }: { project: Project; people: Person[] }) { return <div className="page list-page activity-page"><PageHeader eyebrow="PROJECT HISTORY" title="Activity" copy="A quiet, traceable record of how shared work became progress." /> <div className="activity-feed">{project.activity.map((a) => <ActivityRow key={a.id} item={a} people={people} detailed />)}</div></div>; }
 function ActivityRow({ item, people, detailed = false }: { item: Activity; people: Person[]; detailed?: boolean }) { const Icon = item.kind === "decision" ? CircleDot : item.kind === "task" ? Target : item.kind === "knowledge" ? Archive : item.kind === "file" ? FileText : item.kind === "people" ? Users : MessageSquare; const p = people.find((x) => x.id === item.actorId); return <div className={`activity-row ${detailed ? "detailed" : ""}`}><span className="activity-icon"><Icon size={15} /></span><Avatar person={p} small /><p><strong>{p?.name || "Team member"}</strong> {item.action} <b>{item.target}</b></p><time>{formatTime(item.at)}</time></div>; }
 function MembersView({ project, people, onAdd }: { project: Project; people: Person[]; onAdd: (name: string) => void }) { const [name, setName] = useState(""); return <div className="page list-page"><PageHeader eyebrow="PEOPLE IN THE ROOM" title="Members" copy="Demo identities make authorship visible without adding authentication." /><form className="add-member" onSubmit={(e) => { e.preventDefault(); if (name.trim()) { onAdd(name); setName(""); } }}><div><Users size={18} /><span><strong>Add a teammate</strong><small>They’ll be available as a demo identity immediately.</small></span></div><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Teammate name" /><button className="primary-button" disabled={!name.trim()}>Add member</button></form><div className="members-list">{people.map((p, i) => <div className="member-row" key={p.id}><Avatar person={p} /><div><strong>{p.name}</strong><small>{i === 0 ? "Owner" : "Member"}</small></div><span className="member-presence">Available</span><MoreHorizontal size={18} /></div>)}</div></div>; }
