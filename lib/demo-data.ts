@@ -60,16 +60,7 @@ export function demoProject(): Project {
       { id: "f2", name: "payment-webhook-contract.json", type: "JSON contract", size: 2_400, uploaderId: "aman", createdAt: ago(52), url: "/demo/payment-webhook-contract.json" },
       { id: "f3", name: "launch-readiness-checklist.csv", type: "CSV checklist", size: 1_700, uploaderId: "rahul", createdAt: ago(31), url: "/demo/launch-readiness-checklist.csv" }
     ],
-    activity: [
-      { id: "seed-a1", actorId: "akhilesh", action: "reviewed launch menus in", target: "Restaurant catalog quality", at: ago(18), kind: "chat" },
-      { id: "seed-a2", actorId: "aman", action: "moved task to in progress", target: "Implement refund webhook", at: ago(22), kind: "task" },
-      { id: "seed-a3", actorId: "rahul", action: "added file", target: "launch-readiness-checklist.csv", at: ago(31), kind: "file" },
-      { id: "seed-a4", actorId: "neha", action: "created decision", target: "Launch with a manual menu-quality gate", at: ago(88), kind: "decision" },
-      { id: "seed-a5", actorId: "aman", action: "saved knowledge", target: "Support timeline requirement", at: ago(59), kind: "knowledge" },
-      { id: "seed-a6", actorId: "rahul", action: "confirmed decision", target: "Use Razorpay for the India-first launch", at: ago(65), kind: "decision" },
-      { id: "seed-a7", actorId: "neha", action: "asked a follow-up in", target: "Payment architecture", at: ago(45), kind: "chat" },
-      { id: "seed-a8", actorId: "akhilesh", action: "created project", target: "QuickBite", at: ago(60 * 24), kind: "people" }
-    ]
+    activity: []
   };
 }
 
@@ -89,7 +80,7 @@ export function upgradeDemoData(data: AppData): AppData {
     decisions: mergeById(saved.decisions, seed.decisions),
     tasks: mergeById(saved.tasks, seed.tasks),
     files: mergeById(saved.files, seed.files),
-    activity: mergeById(saved.activity, seed.activity).sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()),
+    activity: mergeById(saved.activity.filter(a => !a.id.startsWith("seed-a")), seed.activity).sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()),
   };
   return { ...data, projects: data.projects.map((project) => project.id === saved.id ? upgraded : project) };
 }
